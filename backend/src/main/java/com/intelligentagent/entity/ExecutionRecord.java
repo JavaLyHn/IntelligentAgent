@@ -1,53 +1,40 @@
 package com.intelligentagent.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 import java.time.LocalDateTime;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "execution_records")
-public class ExecutionRecord {
+@SuperBuilder
+@TableName(value = "execution_records")
+public class ExecutionRecord extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
-
-    @Column(nullable = false)
     private String workflowId;
 
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
+    @TableField(value = "status")
     private ExecutionStatus status;
 
-    @Column(columnDefinition = "TEXT")
     private String inputText;
 
-    @Column(columnDefinition = "TEXT")
     private String outputText;
 
-    @Column(length = 2000)
     private String audioUrl;
 
-    @Column(columnDefinition = "TEXT")
     private String executionLog;
 
-    @Column(columnDefinition = "TEXT")
     private String nodeResultsJson;
 
     private Long durationMs;
 
-    @Column(length = 500)
     private String errorMessage;
-
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime completedAt;
 

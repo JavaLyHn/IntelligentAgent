@@ -1,48 +1,38 @@
 package com.intelligentagent.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 import java.time.LocalDateTime;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "workflow_configs")
-public class WorkflowConfig {
+@SuperBuilder
+@TableName(value = "workflow_configs")
+public class WorkflowConfig extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
-
-    @Column(nullable = false)
+    @TableField(value = "name", condition = SqlCondition.LIKE)
     private String name;
 
-    @Column(length = 1000)
     private String description;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
     private String nodesJson;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
     private String edgesJson;
 
     @Builder.Default
-    @Column(nullable = false)
+    @TableLogic
     private Boolean active = true;
 
     @Builder.Default
-    @Column(nullable = false)
+    @Version
     private Integer version = 1;
 
     private LocalDateTime lastExecutedAt;
-
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    private LocalDateTime updatedAt;
 }
