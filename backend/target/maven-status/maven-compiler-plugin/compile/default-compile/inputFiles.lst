@@ -2,11 +2,13 @@ D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\DAGWorkflo
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\processor\InputNodeProcessor.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\config\MyBatisPlusConfig.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\llm\OpenAICompatibleProvider.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\model\ExecutionEvent.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\processor\NodeProcessor.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\processor\OutputNodeProcessor.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\entity\BaseEntity.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\llm\LLMRequest.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\llm\LLMResponse.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\service\MinioService.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\entity\ExecutionRecord.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\IntelligentAgentApplication.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\dto\WorkflowDTO.java
@@ -27,7 +29,13 @@ D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\dto\ExecutionReco
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\controller\WorkflowController.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\processor\TTSNodeProcessor.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\service\impl\WorkflowConfigServiceImpl.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\llm\BailianTTSProvider.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\config\MinioConfig.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\llm\LLMProvider.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\util\AudioMerger.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\config\MinioProperties.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\mapper\ExecutionRecordMapper.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\controller\WorkflowExecuteController.java
+D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\engine\util\TextSegmenter.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\mapper\WorkflowConfigMapper.java
 D:\IntelligentAgent\backend\src\main\java\com\intelligentagent\dto\ApiResponse.java

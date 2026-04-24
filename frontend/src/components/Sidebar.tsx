@@ -3,60 +3,24 @@ import { Collapse, Card, Tag } from 'antd';
 import {
   RobotOutlined,
   ToolOutlined,
-  AudioOutlined,
-  DeepSeekOutlined,
-  ApiOutlined,
   DragOutlined,
 } from '@ant-design/icons';
 import { useWorkflowStore } from '../store/workflowStore';
 import { NodeType, LLMProvider, ToolType } from '../types/workflow';
 
-const { Panel } = Collapse;
-
 const llmNodes = [
-  {
-    type: LLMProvider.DEEPSEEK,
-    label: 'DeepSeek',
-    icon: '🌸',
-    color: '#ff6b9d',
-    bgColor: '#fff0f5',
-  },
-  {
-    type: LLMProvider.TONGYI,
-    label: '通义千问',
-    icon: '☀️',
-    color: '#faad14',
-    bgColor: '#fffbe6',
-  },
-  {
-    type: LLMProvider.AI_PING,
-    label: 'AI Ping',
-    icon: '🚀',
-    color: '#ff4d4f',
-    bgColor: '#fff1f0',
-  },
-  {
-    type: LLMProvider.ZHIPU,
-    label: '智谱',
-    icon: '💎',
-    color: '#722ed1',
-    bgColor: '#f9f0ff',
-  },
+  { type: LLMProvider.DEEPSEEK, label: 'DeepSeek', icon: '🌸', color: '#ff6b9d', bgColor: '#fff0f5' },
+  { type: LLMProvider.TONGYI, label: '通义千问', icon: '☀️', color: '#faad14', bgColor: '#fffbe6' },
+  { type: LLMProvider.AI_PING, label: 'AI Ping', icon: '🚀', color: '#ff4d4f', bgColor: '#fff1f0' },
+  { type: LLMProvider.ZHIPU, label: '智谱', icon: '💎', color: '#722ed1', bgColor: '#f9f0ff' },
 ];
 
 const toolNodes = [
-  {
-    type: ToolType.TTS_AUDIO,
-    label: '超拟人音频合成',
-    icon: '🎙️',
-    color: '#1890ff',
-    bgColor: '#e6f7ff',
-  },
+  { type: ToolType.TTS_AUDIO, label: '超拟人音频合成', icon: '🎙️', color: '#1890ff', bgColor: '#e6f7ff' },
 ];
 
 const Sidebar: React.FC = () => {
-  const { addNode } = useWorkflowStore();
-  const [activeKey, setActiveKey] = useState(['llm', 'tool']);
+  const [activeKey, setActiveKey] = useState<string[]>(['llm', 'tool']);
 
   const handleDragStart = (
     e: React.DragEvent,
@@ -69,6 +33,76 @@ const Sidebar: React.FC = () => {
     e.dataTransfer.setData('category', nodeCategory);
   };
 
+  const collapseItems = [
+    {
+      key: 'llm',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <RobotOutlined style={{ color: '#1890ff' }} />
+          大模型节点
+        </span>
+      ),
+      children: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {llmNodes.map((node) => (
+            <Card
+              key={node.type}
+              size="small"
+              draggable
+              onDragStart={(e) => handleDragStart(e, node.type, node.label, NodeType.LLM)}
+              style={{
+                cursor: 'grab',
+                borderLeft: `3px solid ${node.color}`,
+                background: node.bgColor,
+                transition: 'all 0.2s',
+              }}
+              className="node-card"
+              hoverable
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>{node.icon}</span>
+                <span style={{ fontWeight: 500 }}>{node.label}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ),
+    },
+    {
+      key: 'tool',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ToolOutlined style={{ color: '#52c41a' }} />
+          工具节点
+        </span>
+      ),
+      children: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {toolNodes.map((node) => (
+            <Card
+              key={node.type}
+              size="small"
+              draggable
+              onDragStart={(e) => handleDragStart(e, node.type, node.label, NodeType.TOOL)}
+              style={{
+                cursor: 'grab',
+                borderLeft: `3px solid ${node.color}`,
+                background: node.bgColor,
+                transition: 'all 0.2s',
+              }}
+              hoverable
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>{node.icon}</span>
+                <span style={{ fontWeight: 500 }}>{node.label}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div
       style={{
@@ -77,7 +111,7 @@ const Sidebar: React.FC = () => {
         borderRight: '1px solid #e8e8e8',
         padding: 16,
         overflowY: 'auto',
-        height: 'calc(100vh - 56px)',
+        height: '100%',
       }}
     >
       <h3 style={{ marginBottom: 16, fontSize: 15, fontWeight: 600 }}>节点库</h3>
@@ -86,78 +120,8 @@ const Sidebar: React.FC = () => {
         activeKey={activeKey}
         onChange={(keys) => setActiveKey(keys as string[])}
         ghost
-      >
-        <Panel
-          header={
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <RobotOutlined style={{ color: '#1890ff' }} />
-              大模型节点
-            </span>
-          }
-          key="llm"
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {llmNodes.map((node) => (
-              <Card
-                key={node.type}
-                size="small"
-                draggable
-                onDragStart={(e) =>
-                  handleDragStart(e, node.type, node.label, NodeType.LLM)
-                }
-                style={{
-                  cursor: 'grab',
-                  borderLeft: `3px solid ${node.color}`,
-                  background: node.bgColor,
-                  transition: 'all 0.2s',
-                }}
-                className="node-card"
-                hoverable
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>{node.icon}</span>
-                  <span style={{ fontWeight: 500 }}>{node.label}</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel
-          header={
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ToolOutlined style={{ color: '#52c41a' }} />
-              工具节点
-            </span>
-          }
-          key="tool"
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {toolNodes.map((node) => (
-              <Card
-                key={node.type}
-                size="small"
-                draggable
-                onDragStart={(e) =>
-                  handleDragStart(e, node.type, node.label, NodeType.TOOL)
-                }
-                style={{
-                  cursor: 'grab',
-                  borderLeft: `3px solid ${node.color}`,
-                  background: node.bgColor,
-                  transition: 'all 0.2s',
-                }}
-                hoverable
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>{node.icon}</span>
-                  <span style={{ fontWeight: 500 }}>{node.label}</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </Panel>
-      </Collapse>
+        items={collapseItems}
+      />
 
       <div
         style={{
