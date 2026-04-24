@@ -15,18 +15,39 @@ html, body, #root {
 
 .app-container {
   display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
   background: #f5f7fa;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 0;
+}
+
+.canvas-wrapper {
+  flex: 1;
   position: relative;
+  overflow: hidden;
 }
 
 .react-flow__node {
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   font-size: 13px;
+}
+
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #1890ff;
 }
 
 .react-flow__edge-path {
   stroke-width: 2;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
 }

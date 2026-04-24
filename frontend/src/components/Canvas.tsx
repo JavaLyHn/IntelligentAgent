@@ -7,6 +7,7 @@ import {
   addEdge,
   useReactFlow,
   ReactFlowProvider,
+  BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useWorkflowStore } from '../store/workflowStore';
@@ -27,11 +28,16 @@ const WorkflowCanvas: React.FC = () => {
   } = useWorkflowStore();
 
   const onConnect = useCallback(
-    (params: any) =>
-      setEdges((eds) =>
-        addEdge({ ...params, animated: true, style: { stroke: '#1890ff', strokeWidth: 2 } }, eds)
-      ),
-    [setEdges]
+    (params: any) => {
+      const newEdge = {
+        ...params,
+        animated: true,
+        style: { stroke: '#1890ff', strokeWidth: 2 },
+      };
+      const updatedEdges = addEdge(newEdge, edges);
+      setEdges(updatedEdges);
+    },
+    [edges, setEdges]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -47,7 +53,7 @@ const WorkflowCanvas: React.FC = () => {
       const label = event.dataTransfer.getData('label');
       const category = event.dataTransfer.getData('category') as NodeType;
 
-      if (!nodeType || !screenToFlowPosition || !reactFlowWrapper.current) return;
+      if (!nodeType || !screenToFlowPosition) return;
 
       const position = screenToFlowPosition({
         x: event.clientX,
@@ -55,21 +61,16 @@ const WorkflowCanvas: React.FC = () => {
       });
 
       let newNodeType = 'llmNode';
-      let defaultLabel = label;
 
       switch (category) {
-        case NodeType.INPUT:
-          newNodeType = 'inputNode';
-          break;
         case NodeType.LLM:
           newNodeType = 'llmNode';
           break;
         case NodeType.TOOL:
           newNodeType = 'toolNode';
           break;
-        case NodeType.OUTPUT:
-          newNodeType = 'outputNode';
-          break;
+        default:
+          newNodeType = 'llmNode';
       }
 
       const newNode = {
@@ -77,7 +78,7 @@ const WorkflowCanvas: React.FC = () => {
         type: newNodeType,
         position,
         data: {
-          label: defaultLabel,
+          label: label,
           type: nodeType,
           category,
           config: {},
@@ -89,9 +90,12 @@ const WorkflowCanvas: React.FC = () => {
     [screenToFlowPosition, addNode]
   );
 
-  const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
-    setSelectedNode(node.id);
-  }, [setSelectedNode]);
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: any) => {
+      setSelectedNode(node.id);
+    },
+    [setSelectedNode]
+  );
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
@@ -111,19 +115,19 @@ const WorkflowCanvas: React.FC = () => {
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
+        fitViewOptions={{ padding: 0.2 }}
         snapToGrid
         snapGrid={[15, 15]}
         defaultEdgeOptions={{
           animated: true,
           style: { stroke: '#1890ff', strokeWidth: 2 },
         }}
+        minZoom={0.2}
+        maxZoom={2}
+        attributionPosition="bottom-left"
       >
-        <Controls
-          style={{
-            bottom: 30,
-            left: 16,
-          }}
-        />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#d9d9d9" />
+        <Controls position="bottom-left" />
         <MiniMap
           nodeStrokeWidth={3}
           zoomable
@@ -131,11 +135,9 @@ const WorkflowCanvas: React.FC = () => {
           style={{
             width: 180,
             height: 120,
-            bottom: 30,
-            right: 320,
           }}
+          position="bottom-right"
         />
-        <Background gap={20} size={1} color="#e8e8e8" />
       </ReactFlow>
     </div>
   );

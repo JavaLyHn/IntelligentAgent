@@ -1,221 +1,371 @@
-import React, { useState } from 'react';
-import { Drawer, Button, Input, Space, message, Typography, Tag } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Drawer, Input, Button, Tag, Alert, Divider, message } from 'antd';
 import {
   PlayCircleOutlined,
-  ClearOutlined,
-  AudioOutlined,
   CheckCircleOutlined,
-  BugOutlined,
+  WarningOutlined,
+  CloseCircleOutlined,
+  SoundOutlined,
+  LoadingOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons';
-import { useWorkflowStore } from '../store/workflowStore';
+import { useWorkflowStore, NodeExecutionState } from '../store/workflowStore';
 
 const { TextArea } = Input;
-const { Text, Paragraph } = Typography;
+
+const NODE_TYPE_LABELS: Record<string, string> = {
+  inputNode: '输入节点',
+  llmNode: 'LLM节点',
+  toolNode: 'TTS节点',
+  outputNode: '输出节点',
+};
+
+const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; text: string }> = {
+  pending: { icon: <MinusCircleOutlined />, color: '#d9d9d9', bg: '#fafafa', text: '等待中' },
+  running: { icon: <LoadingOutlined spin />, color: '#1677ff', bg: '#e6f4ff', text: '执行中' },
+  success: { icon: <CheckCircleOutlined />, color: '#52c41a', bg: '#f6ffed', text: '已完成' },
+  failed: { icon: <CloseCircleOutlined />, color: '#ff4d4f', bg: '#fff2f0', text: '失败' },
+};
+
+const TTS_STATUS_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  success: { label: 'TTS调用成功', color: 'success', icon: <CheckCircleOutlined /> },
+  demo: { label: 'TTS演示模式', color: 'warning', icon: <WarningOutlined /> },
+  error: { label: 'TTS调用失败', color: 'error', icon: <CloseCircleOutlined /> },
+  no_api_key: { label: '未配置API密钥', color: 'warning', icon: <WarningOutlined /> },
+  no_text: { label: '无输入文本', color: 'default', icon: <WarningOutlined /> },
+  skipped: { label: 'TTS未执行', color: 'default', icon: <WarningOutlined /> },
+};
 
 const DebugDrawer: React.FC = () => {
   const {
     isDebugOpen,
     setIsDebugOpen,
-    debugInput,
-    setDebugInput,
-    debugOutput,
-    setDebugOutput,
+    executeWorkflow,
+    executionResult,
     isExecuting,
-    setIsExecuting,
-    nodes,
-    edges,
-    currentWorkflowId,
+    nodeExecutionStates,
+    executionLogs,
+    currentExecutingNodeId,
   } = useWorkflowStore();
 
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [executionLog, setExecutionLog] = useState<string[]>([]);
+  const [inputText, setInputText] = useState('');
+  const logsEndRef = useRef<HTMLDivElement>(null);
 
-  const addLog = (log: string) => {
-    setExecutionLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${log}`]);
-  };
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [executionLogs]);
 
   const handleExecute = async () => {
-    if (!debugInput.trim()) {
+    if (!inputText.trim()) {
       message.warning('请输入测试文本');
       return;
     }
-
-    setIsExecuting(true);
-    setExecutionLog([]);
-    setAudioUrl(null);
-
-    try {
-      addLog('🚀 开始执行工作流...');
-      addLog(`📝 输入: ${debugInput.substring(0, 50)}${debugInput.length > 50 ? '...' : ''}`);
-
-      const response = await fetch('/api/workflow/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workflowId: currentWorkflowId,
-          input: debugInput,
-          nodes,
-          edges,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        const data = result.data;
-        addLog('✅ 工作流执行成功');
-
-        if (data.logs) {
-          data.logs.forEach((log: string) => addLog(log));
-        }
-
-        if (data.outputText) {
-          setDebugOutput(data.outputText);
-          addLog(`📤 输出: ${data.outputText.substring(0, 50)}...`);
-        }
-
-        if (data.audioUrl) {
-          setAudioUrl(data.audioUrl);
-          addLog('🎵 音频生成完成');
-        }
-
-        if (data.durationMs) {
-          addLog(`⏱️ 执行耗时: ${data.durationMs}ms`);
-        }
-
-        message.success('执行成功！');
-      } else {
-        addLog(`❌ 错误: ${result.message || result.data?.errorMessage || '执行失败'}`);
-        message.error(result.message || '执行失败');
-      }
-    } catch (error: any) {
-      addLog(`❌ 网络错误: ${error.message}`);
-      message.error('网络请求失败，请确认后端服务已启动');
-    } finally {
-      setIsExecuting(false);
-    }
+    await executeWorkflow(inputText);
   };
 
-  const handleClear = () => {
-    setDebugInput('');
-    setDebugOutput('');
-    setAudioUrl(null);
-    setExecutionLog([]);
+  const result = executionResult as any;
+  const ttsStatus = result?.ttsStatus || '';
+  const ttsError = result?.ttsError || '';
+  const audioUrl = result?.audioUrl || result?.voice_url || '';
+
+  const nodeStatesArray = Object.values(nodeExecutionStates);
+
+  const renderNodeProgress = () => {
+    if (nodeStatesArray.length === 0) return null;
+
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <Divider orientation="left" style={{ fontSize: 12, margin: '12px 0 8px' }}>
+          节点执行进度
+        </Divider>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {nodeStatesArray.map((nodeState) => {
+            const config = STATUS_CONFIG[nodeState.status] || STATUS_CONFIG.pending;
+            const isCurrent = nodeState.nodeId === currentExecutingNodeId;
+            const typeLabel = NODE_TYPE_LABELS[nodeState.nodeType] || nodeState.nodeType;
+
+            return (
+              <div
+                key={nodeState.nodeId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: isCurrent ? config.bg : '#fafafa',
+                  border: isCurrent ? `1px solid ${config.color}30` : '1px solid #f0f0f0',
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                <span style={{ color: config.color, fontSize: 16 }}>{config.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{nodeState.label}</span>
+                    <Tag
+                      color={nodeState.status === 'running' ? 'processing' : nodeState.status === 'success' ? 'success' : nodeState.status === 'failed' ? 'error' : 'default'}
+                      style={{ fontSize: 11, lineHeight: '18px', padding: '0 4px', margin: 0 }}
+                    >
+                      {config.text}
+                    </Tag>
+                    <span style={{ fontSize: 10, color: '#999' }}>{typeLabel}</span>
+                  </div>
+                  {nodeState.durationMs != null && nodeState.status !== 'running' && nodeState.status !== 'pending' && (
+                    <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
+                      耗时: {nodeState.durationMs}ms
+                    </div>
+                  )}
+                  {nodeState.errorMessage && (
+                    <div style={{ fontSize: 11, color: '#ff4d4f', marginTop: 2, wordBreak: 'break-all' }}>
+                      {nodeState.errorMessage}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderTtsStatus = () => {
+    if (!ttsStatus || ttsStatus === 'skipped') return null;
+
+    if (ttsStatus === 'success') {
+      return (
+        <Alert
+          type="success"
+          message="超拟人音频合成调用成功"
+          description="百炼TTS服务已成功生成音频，可在下方播放器中收听"
+          showIcon
+          icon={<CheckCircleOutlined />}
+          style={{ marginBottom: 12 }}
+        />
+      );
+    }
+
+    if (ttsStatus === 'error') {
+      return (
+        <Alert
+          type="error"
+          message="超拟人音频合成调用失败"
+          description={ttsError || '未知错误'}
+          showIcon
+          icon={<CloseCircleOutlined />}
+          style={{ marginBottom: 12 }}
+        />
+      );
+    }
+
+    if (ttsStatus === 'no_api_key') {
+      return (
+        <Alert
+          type="warning"
+          message="未配置API密钥"
+          description="请在超拟人音频节点中配置百炼API密钥，或检查application.yml中的tongyi.api-key配置"
+          showIcon
+          icon={<WarningOutlined />}
+          style={{ marginBottom: 12 }}
+        />
+      );
+    }
+
+    if (ttsStatus === 'demo') {
+      return (
+        <Alert
+          type="warning"
+          message="TTS演示模式"
+          description="当前为演示模式，未实际调用百炼TTS服务。请配置API密钥以获取真实音频"
+          showIcon
+          icon={<WarningOutlined />}
+          style={{ marginBottom: 12 }}
+        />
+      );
+    }
+
+    if (ttsStatus === 'no_text') {
+      return (
+        <Alert
+          type="info"
+          message="无输入文本"
+          description="超拟人音频节点未接收到文本输入，跳过TTS调用"
+          showIcon
+          style={{ marginBottom: 12 }}
+        />
+      );
+    }
+
+    return null;
+  };
+
+  const renderAudioPlayer = () => {
+    if (!audioUrl) return null;
+
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <Divider orientation="left" style={{ fontSize: 12, margin: '12px 0 8px' }}>
+          <SoundOutlined /> 音频输出
+        </Divider>
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 12,
+          padding: 16,
+          color: '#fff',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 24,
+            }}>
+              🎙️
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>AI 播客音频</div>
+              <div style={{ fontSize: 11, opacity: 0.8 }}>点击播放按钮收听</div>
+            </div>
+          </div>
+          <audio
+            controls
+            src={audioUrl}
+            style={{ width: '100%', borderRadius: 8 }}
+            onError={(e) => {
+              console.error('Audio playback error:', e);
+            }}
+          >
+            您的浏览器不支持音频播放
+          </audio>
+        </div>
+      </div>
+    );
+  };
+
+  const renderExecutionLogs = () => {
+    if (executionLogs.length === 0) return null;
+
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <Divider orientation="left" style={{ fontSize: 12, margin: '12px 0 8px' }}>
+          执行日志
+        </Divider>
+        <div style={{
+          background: '#1a1a2e',
+          borderRadius: 8,
+          padding: 12,
+          maxHeight: 200,
+          overflowY: 'auto',
+          fontFamily: 'monospace',
+        }}>
+          {executionLogs.map((log, idx) => (
+            <div key={idx} style={{
+              fontSize: 11,
+              color: log.includes('❌') ? '#ff6b6b' : log.includes('✅') ? '#51cf66' : log.includes('⚙️') ? '#74c0fc' : '#adb5bd',
+              lineHeight: 1.8,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+            }}>
+              {log}
+            </div>
+          ))}
+          <div ref={logsEndRef} />
+        </div>
+      </div>
+    );
   };
 
   return (
     <Drawer
-      title={
-        <Space>
-          <BugOutlined />
-          <span>工作流调试</span>
-          {isExecuting && <Tag color="processing">执行中...</Tag>}
-        </Space>
-      }
+      title="🔧 工作流调试"
       placement="right"
       onClose={() => setIsDebugOpen(false)}
       open={isDebugOpen}
-      width={450}
-      styles={{
-        body: { padding: 16, display: 'flex', flexDirection: 'column', gap: 16 },
-      }}
+      width={420}
+      styles={{ body: { padding: 16 } }}
     >
-      <div>
-        <Text strong style={{ marginBottom: 8, display: 'block' }}>
-          📝 测试输入
-        </Text>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>输入测试文本</div>
         <TextArea
-          value={debugInput}
-          onChange={(e) => setDebugInput(e.target.value)}
-          placeholder="请输入要处理的文本，例如：介绍一下人工智能的发展历史..."
           rows={4}
-          disabled={isExecuting}
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder="输入测试文本，如：今天天气怎么样？"
+          onPressEnter={(e) => {
+            if (!e.shiftKey) {
+              e.preventDefault();
+              handleExecute();
+            }
+          }}
         />
-      </div>
-
-      <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-        <Button icon={<ClearOutlined />} onClick={handleClear} disabled={isExecuting}>
-          清空
-        </Button>
         <Button
           type="primary"
           icon={<PlayCircleOutlined />}
-          onClick={handleExecute}
           loading={isExecuting}
-          size="large"
+          onClick={handleExecute}
+          block
+          style={{ marginTop: 8 }}
         >
-          执行测试
+          {isExecuting ? '执行中...' : '执行工作流'}
         </Button>
-      </Space>
+      </div>
 
-      {executionLog.length > 0 && (
-        <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>
-            📋 执行日志
-          </Text>
-          <div
-            style={{
-              background: '#1e1e1e',
-              color: '#d4d4d4',
-              padding: 12,
-              borderRadius: 8,
-              maxHeight: 180,
-              overflowY: 'auto',
-              fontFamily: 'Consolas, Monaco, monospace',
-              fontSize: 12,
-              lineHeight: 1.6,
-            }}
-          >
-            {executionLog.map((log, index) => (
-              <div key={index} style={{ marginBottom: 2 }}>{log}</div>
-            ))}
-          </div>
-        </div>
-      )}
+      {renderNodeProgress()}
 
-      {debugOutput && (
-        <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>
-            📤 模型输出
-          </Text>
-          <Paragraph
-            style={{
-              background: '#f0fff4',
-              padding: 12,
-              borderRadius: 8,
-              borderLeft: '3px solid #52c41a',
-              maxHeight: 200,
-              overflowY: 'auto',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {debugOutput}
-          </Paragraph>
-        </div>
-      )}
+      {renderExecutionLogs()}
 
-      {audioUrl && (
-        <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>
-            <AudioOutlined /> 音频输出
-          </Text>
-          <div
-            style={{
-              background: '#e6f7ff',
-              padding: 16,
-              borderRadius: 8,
-              textAlign: 'center',
-              border: '2px dashed #1890ff',
-            }}
-          >
-            <audio controls src={audioUrl} style={{ width: '100%' }} autoPlay>
-              您的浏览器不支持音频播放
-            </audio>
-            <div style={{ marginTop: 8, color: '#1890ff' }}>
-              <CheckCircleOutlined /> AI播客已就绪，点击播放按钮收听
+      {result && (
+        <>
+          <Divider orientation="left" style={{ fontSize: 12, margin: '12px 0 8px' }}>
+            执行结果
+          </Divider>
+
+          {result.success ? (
+            <Tag color="success" style={{ marginBottom: 8 }}>✅ 执行成功</Tag>
+          ) : (
+            <Alert
+              type="error"
+              message="执行失败"
+              description={result.errorMessage || '未知错误'}
+              showIcon
+              style={{ marginBottom: 8 }}
+            />
+          )}
+
+          {renderTtsStatus()}
+
+          {result.outputText && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 4 }}>输出文本</div>
+              <div style={{
+                background: '#f5f5f5',
+                padding: 12,
+                borderRadius: 8,
+                fontSize: 13,
+                lineHeight: 1.6,
+                whiteSpace: 'pre-wrap',
+                maxHeight: 200,
+                overflowY: 'auto',
+              }}>
+                {result.outputText}
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {renderAudioPlayer()}
+
+          {result.durationMs != null && (
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 8 }}>
+              总耗时: {result.durationMs}ms
+            </div>
+          )}
+        </>
       )}
     </Drawer>
   );
