@@ -9,6 +9,8 @@ public class LLMRequest {
 
     private String provider;
     private String model;
+    private String baseUrl;
+    private String apiKey;
     private String systemPrompt;
     private String userPrompt;
     @Builder.Default
