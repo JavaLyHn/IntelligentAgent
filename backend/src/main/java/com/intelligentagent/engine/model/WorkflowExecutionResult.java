@@ -16,6 +16,8 @@ public class WorkflowExecutionResult {
     private boolean success;
     private String outputText;
     private String audioUrl;
+    private String ttsStatus;
+    private String ttsError;
     private List<String> logs;
     private Map<String, NodeContext> nodeContexts;
     private long totalDurationMs;
