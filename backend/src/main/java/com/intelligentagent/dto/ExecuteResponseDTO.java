@@ -16,6 +16,8 @@ public class ExecuteResponseDTO {
     private boolean success;
     private String outputText;
     private String audioUrl;
+    private String ttsStatus;
+    private String ttsError;
     private List<String> logs;
     private Long durationMs;
     private String errorMessage;
