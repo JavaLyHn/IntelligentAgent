@@ -58,20 +58,33 @@ public class OpenAICompatibleProvider implements LLMProvider {
     @Override
     public LLMResponse chat(LLMRequest request) {
         String provider = request.getProvider() != null ? request.getProvider() : "openai";
-        ProviderConfig config = getConfig(provider, request.getModel());
+        ProviderConfig globalConfig = getGlobalConfig(provider, request.getModel());
 
-        if (config.apiKey == null || config.apiKey.isBlank()) {
-            log.warn("No API key configured for provider: {}, using demo mode", provider);
+        String effectiveBaseUrl = request.getBaseUrl() != null && !request.getBaseUrl().isBlank()
+                ? request.getBaseUrl() : globalConfig.baseUrl;
+        String effectiveApiKey = request.getApiKey() != null && !request.getApiKey().isBlank()
+                ? request.getApiKey() : globalConfig.apiKey;
+        String effectiveModel = request.getModel() != null && !request.getModel().isBlank()
+                ? request.getModel() : globalConfig.model;
+
+        boolean hasPageKey = request.getApiKey() != null && !request.getApiKey().isBlank();
+        boolean hasGlobalKey = globalConfig.apiKey != null && !globalConfig.apiKey.isBlank();
+
+        if (effectiveApiKey == null || effectiveApiKey.isBlank()) {
+            log.warn("No API key found for provider: {} (page config: {}, application.yml: {}), using demo mode",
+                    provider, hasPageKey, hasGlobalKey);
             return generateDemoResponse(request);
         }
 
+        log.info("API key source for provider {}: {}", provider, hasPageKey ? "page config" : "application.yml");
+
         try {
-            String requestBody = buildRequestBody(request, config);
-            log.info("Calling LLM API: {}/chat/completions, model={}", config.baseUrl, config.model);
+            String requestBody = buildRequestBody(request, effectiveModel);
+            log.info("Calling LLM API: {}/chat/completions, model={}", effectiveBaseUrl, effectiveModel);
 
             Request httpRequest = new Request.Builder()
-                    .url(config.baseUrl + "/chat/completions")
-                    .addHeader("Authorization", "Bearer " + config.apiKey)
+                    .url(effectiveBaseUrl + "/chat/completions")
+                    .addHeader("Authorization", "Bearer " + effectiveApiKey)
                     .addHeader("Content-Type", "application/json")
                     .post(RequestBody.create(requestBody, JSON_TYPE))
                     .build();
@@ -79,20 +92,26 @@ public class OpenAICompatibleProvider implements LLMProvider {
             try (Response response = httpClient.newCall(httpRequest).execute()) {
                 if (!response.isSuccessful()) {
                     String errorBody = response.body() != null ? response.body().string() : "Unknown error";
-                    log.error("LLM API error: {} - {}", response.code(), errorBody);
-                    return generateDemoResponse(request);
+                    String maskedError = maskSensitiveInfo(errorBody);
+                    log.error("LLM API error: {} - {}", response.code(), maskedError);
+                    throw new RuntimeException("LLM API调用失败 (HTTP " + response.code() + "): " + maskedError);
                 }
 
                 String responseBody = response.body().string();
-                return parseResponse(responseBody, provider, config.model);
+                return parseResponse(responseBody, provider, effectiveModel);
             }
         } catch (IOException e) {
             log.error("LLM API call failed: {}", e.getMessage());
-            return generateDemoResponse(request);
+            throw new RuntimeException("LLM API调用异常: " + e.getMessage(), e);
         }
     }
 
-    private ProviderConfig getConfig(String provider, String requestModel) {
+    private String maskSensitiveInfo(String text) {
+        if (text == null) return null;
+        return text.replaceAll("(sk-|api[_-]?key[\"']?\\s*[:=]\\s*[\"']?)[\\w-]{8,}", "$1****");
+    }
+
+    private ProviderConfig getGlobalConfig(String provider, String requestModel) {
         return switch (provider.toLowerCase()) {
             case "deepseek" -> new ProviderConfig(
                     deepseekBaseUrl,
@@ -112,9 +131,9 @@ public class OpenAICompatibleProvider implements LLMProvider {
         };
     }
 
-    private String buildRequestBody(LLMRequest request, ProviderConfig config) throws IOException {
+    private String buildRequestBody(LLMRequest request, String model) throws IOException {
         Map<String, Object> body = Map.of(
-                "model", config.model,
+                "model", model,
                 "messages", List.of(
                         Map.of("role", "system", "content",
                                 request.getSystemPrompt() != null ? request.getSystemPrompt() : "你是一个有帮助的AI助手。"),
@@ -144,7 +163,7 @@ public class OpenAICompatibleProvider implements LLMProvider {
                     .build();
         }
 
-        return generateDemoResponse(LLMRequest.builder().provider(provider).model(model).build());
+        throw new RuntimeException("LLM API返回了无效的响应格式");
     }
 
     private LLMResponse generateDemoResponse(LLMRequest request) {
